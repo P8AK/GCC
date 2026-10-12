@@ -1,0 +1,470 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>GCC Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky masthead + tab strip over one working canvas; every figure carries a source chip and a confidence state. */
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#101C26; --muted:#556675; --line:#D6DDE3;
+  --accent:#0A6B68; --accent-ink:#FFFFFF; --accent-soft:#DCEEED;
+  --warn:#8F5600; --warn-soft:#FBEBCF; --ok:#1F7A4D; --ok-soft:#DDF1E5; --bad:#B3382C;
+  --f-display:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1218; --surface:#121C24; --ink:#E6EDF2; --muted:#92A4B2; --line:#25343F;
+  --accent:#4FC3BD; --accent-ink:#06201F; --accent-soft:#12302F;
+  --warn:#E6A93E; --warn-soft:#38290E; --ok:#5CC28C; --ok-soft:#10301F; --bad:#E57A6E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1218; --surface:#121C24; --ink:#E6EDF2; --muted:#92A4B2; --line:#25343F;
+  --accent:#4FC3BD; --accent-ink:#06201F; --accent-soft:#12302F;
+  --warn:#E6A93E; --warn-soft:#38290E; --ok:#5CC28C; --ok-soft:#10301F; --bad:#E57A6E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.55 var(--f-body);padding-inline:16px}
+.wrap{max-width:1120px;margin-inline:auto}
+header.mast{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding-block:20px 8px}
+.brand{font:700 26px/1 var(--f-display);letter-spacing:-.02em}
+.brand i{font-style:normal;color:var(--accent)}
+.tag{color:var(--muted);flex:1 1 280px;min-width:0}
+.stamp{font:500 11px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:3px 7px;background:var(--surface)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin-inline:-16px;padding-inline:16px}
+nav.tabs button{flex:none;font:500 14px var(--f-body);color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:12px 12px 10px;cursor:pointer}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:24px 56px;display:grid;gap:28px}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.015em;text-wrap:balance;margin:0}
+h2{font-size:24px;line-height:1.2}
+h3{font-size:16px}
+.lede{color:var(--muted);max-width:68ch;margin:6px 0 0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.src{display:inline-block;font:500 10.5px var(--f-mono);color:var(--accent);background:var(--accent-soft);border-radius:3px;padding:1px 5px;text-decoration:none;vertical-align:1px;margin-left:3px}
+.chip{display:inline-block;font:500 11px var(--f-body);border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.btn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap;background:var(--surface)}
+th button{all:unset;cursor:pointer}
+th button:hover{color:var(--ink)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+.na{color:var(--muted);opacity:.7}
+/* bars */
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr) 64px;gap:12px;align-items:center;background:none;border:0;text-align:left;color:inherit;font:inherit;padding:6px 8px;border-radius:6px;cursor:pointer;width:100%}
+.bar:hover,.bar[aria-pressed="true"]{background:var(--accent-soft)}
+.bar .lab{font-size:13px;line-height:1.3;min-width:0}
+.bar .lab small{display:block;color:var(--muted);font-size:11.5px}
+.track{height:14px;background:var(--bg);border-radius:3px;overflow:hidden}
+.fill{height:100%;background:var(--accent);border-radius:3px}
+.fill.alt{background:var(--muted);opacity:.55}
+.bar .val{font:500 13px var(--f-mono);text-align:right}
+@media (max-width:620px){.bar{grid-template-columns:1fr 56px}.bar .track{grid-column:1 / -1;order:3}}
+/* conflict ledger */
+.conf{display:grid;gap:12px}
+.conf article{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;background:var(--surface);padding:14px 16px;display:grid;gap:8px}
+.conf .vals{display:flex;flex-wrap:wrap;gap:8px}
+.conf .vals span{font:500 13px var(--f-mono);background:var(--warn-soft);color:var(--warn);border-radius:4px;padding:3px 8px}
+.treat{font-size:13.5px;color:var(--muted)}
+.treat b{color:var(--ink);font-weight:600}
+/* fit finder */
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px 22px}
+.sl label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.sl input[type=range]{width:100%;accent-color:var(--accent)}
+.rank{display:grid;gap:10px;margin-top:6px}
+.rk{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.rk:first-child{border-top:0}
+.rk .n{font:700 20px var(--f-display);color:var(--accent)}
+.rk .meter{height:8px;background:var(--bg);border-radius:3px;margin:6px 0;overflow:hidden}
+.rk .meter div{height:100%;background:var(--accent)}
+.rk p{margin:0;font-size:13.5px;color:var(--muted)}
+select,input[type=text],textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;max-width:100%}
+textarea{width:100%;min-height:76px;resize:vertical}
+.cover{font:500 12px var(--f-mono);color:var(--muted)}
+.cover b{color:var(--accent)}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+summary{cursor:pointer;font-weight:500}
+.model{display:grid;gap:6px}
+.model.pick{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 12px;font-size:13.5px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.answer{white-space:pre-wrap;line-height:1.6;font-size:14.5px}
+.pillrow{display:flex;flex-wrap:wrap;gap:8px}
+.chain{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}
+.chain .panel{padding:14px}
+.chain h3{margin-bottom:4px}
+.chain p{margin:0;font-size:13.5px;color:var(--muted)}
+.srcitem{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.srcitem:target,.srcitem.hl{background:var(--accent-soft)}
+.srcitem a{color:var(--accent);word-break:break-word}
+@media (prefers-reduced-motion: no-preference){.fill,.rk .meter div{transition:width .35s ease}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="brand">GCC <i>Atlas</i></div>
+  <div class="tag">Explore India’s GCC landscape, compare where to build, and inspect the evidence behind each figure.</div>
+  <div class="stamp" id="stamp">Prototype · 2026</div>
+</header>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Atlas sections"></nav>
+<main id="view"></main>
+</div>
+
+<script>
+/* ---------- DATA: every row carries a source id (S#). Gaps are left empty on purpose. ---------- */
+var SOURCES={
+S1:{n:"Zinnov–nasscom India GCC Landscape 2026 (primary report page)",d:"FY26 · data as of March 2026",u:"https://zinnov.com/centers-of-excellence/zinnov-nasscom-india-gcc-landscape-2026-report/"},
+S2:{n:"CBRE, The Policy Advantage (reported by Entrepreneur India)",d:"14 Aug 2026",u:"https://india.entrepreneur.com/business-news/states-target-1-1-mn-gcc-jobs-by-2031-cbre"},
+S3:{n:"Colliers, GCC office leasing (Outlook Business)",d:"Jul 2026",u:"https://www.outlookbusiness.com/news/foreign-firms-rent-105-mn-sq-ft-office-space-since-2022-to-establish-gccs-in-india-colliers"},
+S4:{n:"JLL Q1 2026 office report (IANS)",d:"27 Apr 2026",u:"https://ianslive.in/india-office-leasing-posts-quarterly-record-of-215-mn-sq-ft-in-q1-2026--20260427113748"},
+S5:{n:"Vestian Q1 2026 (Tribune India)",d:"20 Apr 2026",u:"https://www.tribuneindia.com/news/business/bengaluru-leads-indias-office-market-in-q1-2026-gccs-drive-53-of-leasing-report/"},
+S6:{n:"ICRA GCC leasing outlook",d:"17 Oct 2025",u:"https://therealtytoday.com/news/market-insights/gccs-to-drive-40-of-office-space-demand-in-indias-top-6-cities-with-5055-msf-leasing-icra/"},
+S7:{n:"Foundit GCC hiring study (Business Today)",d:"1 Jul 2026",u:"https://www.businesstoday.in/jobs/story/at-5-1-lakh-jobs-indias-global-capability-centre-hiring-boom-scales-new-peak-540328-2026-07-01"},
+S8:{n:"Zyoin Group GCC talent research (CXO Digital Pulse)",d:"2026",u:"https://www.cxodigitalpulse.com/the-salary-race-in-indias-gccs-is-over-the-skills-chase-has-begun/"},
+S9:{n:"Hyderabad GCC office demand report (CXOToday)",d:"May 2026",u:"https://cxotoday.com/others/hyderabad-gcc-acceleration-projected-to-drive-up-to-12-million-sq-ft-office-demand/"},
+S10:{n:"Grant Thornton, Haryana GCC Policy 2026",d:"12 Jun 2026",u:"https://www.grantthornton.in/globalassets/1.-member-firms/india/assets/pdfs/alerts/haryana-global-capability-centres-policy-2026.pdf"},
+S11:{n:"law.asia, Indian states race to become GCC powerhouses",d:"2026",u:"https://law.asia/india-gcc-growth/"},
+S12:{n:"law.asia, GCC compliance framework",d:"Jun 2026",u:"https://law.asia/india-gcc-compliance-framework/"},
+S13:{n:"CalcGuru, GCC setup models and costs (vendor content)",d:"Jul 2026",u:"https://calcguru.in/?p=3797"},
+S14:{n:"Wisemonk, timeline to launch a GCC (vendor content)",d:"2026",u:"https://www.wisemonk.io/blogs/timeline-to-launch-a-gcc-in-india"},
+S15:{n:"Flexiple, upcoming GCCs in India",d:"2026",u:"https://flexiple.com/global-capability-centers/upcoming-global-capability-centers-in-india"},
+S16:{n:"GCC Voices monthly roundup",d:"Jan–Feb 2026",u:"https://www.aniisu.com/wp-content/uploads/2026/02/GCC-Voices-Monthly-Roundup-January-February-2026.pdf"},
+S17:{n:"Major GCC announcements in 2026 (Sights in Plus)",d:"2026",u:"https://www.sightsinplus.com/editorial/major-gcc-announcements-in-2026-set-to-create-thousands-of-jobs-in-india/"},
+S18:{n:"GCC Journal, FY2024 base numbers",d:"2026",u:"https://gccjournal.in/insights/list-of-global-capability-centers-gcc-in-india/"},
+S19:{n:"Wikipedia, Global capability center",d:"2026",u:"https://en.wikipedia.org/wiki/Global_capability_center"},
+S20:{n:"Zinnov, five shifts defining India's GCC story in 2025",d:"2026",u:"https://zinnov.com/centers-of-excellence/5-shifts-defining-indias-global-capability-centers-gccs-story-in-2025-blog/"},
+S21:{n:"JLL India GCC Guide 2026",d:"2026",u:"https://www.jll.com/en-in/guides/gcc-office-guide"},
+S22:{n:"Flexiple, India GCC statistics 2026",d:"2026",u:"https://flexiple.com/gcc/statistics"},
+S23:{n:"Global Capability Centers in India see strong growth in 2026",d:"Aug 2026",u:"https://newsorbit.it.com/?p=2442"},
+S24:{n:"Ceipal, new GCCs in India 2024–2026",d:"23 Mar 2026",u:"https://www.ceipal.com/resources/new-gccs-in-india-who-launched-whos-expanding-and-whos-coming-next-2024-2026"},
+S25:{n:"ANSR research via LinkedIn summary, new entrants 2025–26",d:"2026",u:"https://sg.linkedin.com/in/neelimgoswami"},
+S26:{n:"The Week, GCCs heading into small-town India",d:"27 Mar 2026",u:"https://www.theweek.in/news/sci-tech/2026/03/27/india-gcc-tier-2-expansion-opinion.amp.html"}
+};
+
+var COUNTS=[
+{k:"nasscom–Zinnov FY26, centres (units)",v:3728,s:"S1",basis:"Individual sites. A company with three offices counts three times.",alt:true},
+{k:"nasscom–Zinnov FY26, GCCs",v:2117,s:"S1",basis:"Company-level count, FY26 (data as of March 2026)."},
+{k:"JLL GCC Guide 2026, \"over 2,000\"",v:2000,s:"S21",basis:"Rounded figure. Pairs it with 1.9M employees, which is the older FY24 base."},
+{k:"nasscom FY24 (via GCC Journal)",v:1800,s:"S18",basis:"FY2024 base year; 1.9M employees and $64.6B revenue."},
+{k:"Zinnov, end of CY2025",v:1760,s:"S20",basis:"Calendar-year count. Calls them \"centers\", the same word used for the 3,728 sites."},
+{k:"Wikipedia, 2025",v:1700,s:"S19",basis:"Secondary source, 1.9M employees."}
+];
+var HEADLINE=[["GCCs (FY26)","2,117","S1"],["Centres / units","3,728","S1"],["Employees","2.36M","S1"],["Revenue","$98.4B","S1"]];
+
+var CONFLICTS=[
+{t:"How many GCCs does Bengaluru have?",vals:[["870","S25"],["875+","S8"],["880+","S9"],["900+","S4"]],treat:"Show a range (870 to 900+) until the entity list is resolved. 900+ comes from JLL, which counts units. The others are closer to company-level counts."},
+{t:"GCC share of office leasing, early 2026",vals:[["43% (H1 2026, CBRE, 9 cities)","S2"],["45.5% (Q1 2026, JLL)","S4"],["46% (H1 2026, Colliers, 7 cities)","S3"],["53% (Q1 2026, Vestian, top 7)","S5"]],treat:"Different quarters, city sets and definitions of a GCC lease. Atlas will show each firm's number with its basis and publish one normalised series once raw lease records are matched to entities."},
+{t:"Maharashtra's GCC target",vals:[["~200 centres by 2030","S2"],["400 new GCCs by 2030","S11"]],treat:"Both quote 4 lakh jobs. The official policy document is the tiebreaker, so this row is flagged until it is read from the notification."},
+{t:"Haryana's GCC policy year",vals:[["GCC Policy 2025","S11"],["GCC Policy 2026 (notified 12 Jun 2026, valid 5 years from 27 May 2026)","S10"]],treat:"The law-firm note on the notified text is newer and more specific, so Atlas shows 2026 and keeps the older label as an alias."},
+{t:"Attrition, tier-1 vs tier-2",vals:[["Tier-1 18–22%","S7"],["Bengaluru tech 20–25%","S8"],["Tier-2 8–12%","S7"],["Tier-2 12–15%","S8"]],treat:"Not true conflicts, because the populations differ (all roles vs tech roles). Atlas stores the population next to each figure so that comparisons stay like for like."},
+{t:"Time to first hire with a BOT partner",vals:[["4–6 weeks","S14"],["8–16 weeks","S14"],["2–4 months","S13"]],treat:"All three come from vendors who sell the service. Atlas will replace these with observed times from verified engagements."}
+];
+
+/* Cities: null = not yet sourced. Index scores are an Atlas v0 analyst index (0-100) derived from the cited indicators. */
+var CITIES=[
+{c:"Bengaluru",tier:1,gccs:"870–900+",gccN:885,hire:30,newFY25:"30–35",rent:null,attr:"20–25%",attrN:22.5,s:["S25","S8","S9","S7"],ix:{depth:95,cost:40,keep:30,mom:70,eco:98},why:{depth:"Largest hiring share and the deepest tech bench",cost:"Highest cost base of the large tech hubs",keep:"Tech attrition 20–25%, the weakest of the major hubs",mom:"Still adding 30–35 GCCs a year, but slower than Hyderabad",eco:"Most leaders, vendors and parks"}},
+{c:"Hyderabad",tier:1,gccs:"515+",gccN:515,hire:15,newFY25:"70+",rent:75,attr:null,attrN:null,s:["S9","S7","S8"],ix:{depth:80,cost:60,keep:45,mom:90,eco:85},why:{depth:"15% of GCC hiring and growing 15% a year",cost:"Salaries 15–25% and real estate 20–30% below Bengaluru; average rent about ₹75/sq ft/month",keep:"No separate attrition figure yet; assumed near the tier-1 range",mom:"70+ new GCCs in FY25, more than Bengaluru, Pune and Chennai combined",eco:"515+ GCCs and 125M sq ft of Grade A stock"}},
+{c:"Pune",tier:1,gccs:"475+",gccN:475,hire:12,newFY25:"15–20",rent:null,attr:null,attrN:null,s:["S9","S7","S8","S5"],ix:{depth:75,cost:58,keep:50,mom:75,eco:78},why:{depth:"12% of hiring, strong engineering and automotive talent",cost:"Operating costs 15–20% below Bengaluru",keep:"Not separately sourced",mom:"Record quarterly office absorption of 3.92M sq ft in Q1 2026",eco:"475+ GCCs"}},
+{c:"Chennai",tier:1,gccs:"280+",gccN:280,hire:9,newFY25:"12–15",rent:null,attr:null,attrN:null,s:["S9","S7","S8"],ix:{depth:65,cost:60,keep:62,mom:55,eco:68},why:{depth:"9% of GCC hiring",cost:"Moderate cost base",keep:"Lowest attrition among the tier-1 cities",mom:"12–15 new GCCs in FY25",eco:"280+ GCCs"}},
+{c:"Delhi NCR",tier:1,gccs:null,gccN:null,hire:8,newFY25:null,rent:null,attr:null,attrN:null,s:["S7","S4"],ix:{depth:70,cost:45,keep:45,mom:60,eco:80},why:{depth:"8% of GCC hiring; 14.2% of Q1 2026 leasing",cost:"Not separately sourced",keep:"Not separately sourced",mom:"Haryana's new 2026 policy and Uttar Pradesh's framework target Gurugram and Noida",eco:"Large established base"}},
+{c:"Mumbai",tier:1,gccs:null,gccN:null,hire:11,newFY25:null,rent:152.6,attr:null,attrN:null,s:["S7","S5","S2"],ix:{depth:60,cost:25,keep:50,mom:55,eco:70},why:{depth:"11% of GCC hiring",cost:"Most expensive office market at ₹152.6/sq ft/month",keep:"Not separately sourced",mom:"Maharashtra's 2025 policy targets 4 lakh jobs",eco:"Strong BFSI base"}},
+{c:"Coimbatore",tier:2,gccs:null,gccN:null,hire:null,newFY25:null,rent:null,attr:"12–15%",attrN:13.5,s:["S8","S7","S26"],ix:{depth:40,cost:85,keep:85,mom:85,eco:40},why:{depth:"Thinner bench; about half of complex roles in tier-2 cities get redirected to tier-1",cost:"Tier-2 operating costs 40–60% lower",keep:"Tier-2 attrition 12–15% (S8) and 8–12% (S7)",mom:"Leads tier-2 with 24% hiring growth",eco:"Few senior leaders at scale"}},
+{c:"Ahmedabad",tier:2,gccs:null,gccN:null,hire:null,newFY25:null,rent:null,attr:"12–15%",attrN:13.5,s:["S8","S26"],ix:{depth:38,cost:82,keep:85,mom:80,eco:45},why:{depth:"Thinner bench; Kraft Heinz runs a 600+ person GCC here",cost:"Tier-2 operating costs 40–60% lower",keep:"Tier-2 attrition range",mom:"21% hiring growth",eco:"Gujarat has a dedicated GCC policy"}},
+{c:"Kochi",tier:2,gccs:null,gccN:null,hire:null,newFY25:null,rent:null,attr:"12–15%",attrN:13.5,s:["S8","S2"],ix:{depth:35,cost:82,keep:85,mom:75,eco:40},why:{depth:"Smaller talent pool",cost:"Tier-2 operating costs 40–60% lower",keep:"Tier-2 attrition range",mom:"16% hiring growth; Kerala's draft policy targets about 80 GCCs",eco:"Early stage"}}
+];
+var DIMS=[["depth","Talent depth"],["cost","Cost advantage"],["keep","Retention"],["mom","Momentum"],["eco","Ecosystem maturity"]];
+
+var STATES=[
+{st:"Karnataka",pol:"GCC Policy 2024–29",status:"In force",g:"~500",j:"3.5 lakh",by:"2029",note:"Largest base. Targets 500 new GCCs.",s:["S2","S11"]},
+{st:"Maharashtra",pol:"GCC Policy 2025",status:"In force",g:"200 or 400",j:"4 lakh",by:"2030",note:"Sources disagree on the centre target.",s:["S2","S11"],flag:true},
+{st:"Haryana",pol:"GCC Policy 2026",status:"In force",g:"100+",j:"n/a",by:"5 yrs from 27 May 2026",note:"Units starting operations on or after 1 Jan 2026 are eligible. Gurugram anchor, other cities encouraged.",s:["S10","S11"],flag:true},
+{st:"Uttar Pradesh",pol:"GCC Policy 2024",status:"In force",g:"n/a",j:"n/a",by:"n/a",note:"Implementation Rules 2025 and SOP-2025 approved Jan 2026; Invest UP is the nodal agency.",s:["S12","S11"]},
+{st:"Telangana",pol:"Policy framework",status:"Framework",g:"120 by 2026",j:"n/a",by:"2026",note:"High-end R&D and AI focus; TASK skilling academy.",s:["S11","S2"]},
+{st:"Tamil Nadu",pol:"No standalone policy",status:"Incentives",g:"n/a",j:"n/a",by:"n/a",note:"Land cost incentive up to 50% (up to 8 ha), IP filing reimbursement, electricity tax exemption, training stipends.",s:["S11","S2"]},
+{st:"Madhya Pradesh",pol:"Dedicated GCC policy",status:"In force",g:"50+",j:"37,000+",by:"2029",note:"Capital support and payroll incentives; pushes tier-2 cities such as Indore.",s:["S2","S11"]},
+{st:"Gujarat",pol:"Dedicated GCC policy",status:"In force",g:"n/a",j:"n/a",by:"n/a",note:"Targets not yet sourced.",s:["S2","S11"]},
+{st:"Rajasthan",pol:"Dedicated GCC policy",status:"In force",g:"n/a",j:"n/a",by:"n/a",note:"Targets not yet sourced.",s:["S2"]},
+{st:"Andhra Pradesh",pol:"Dedicated GCC policy",status:"In force",g:"n/a",j:"n/a",by:"n/a",note:"Targets not yet sourced.",s:["S2"]},
+{st:"Delhi",pol:"Policy framework",status:"Framework",g:"n/a",j:"n/a",by:"n/a",note:"Framework adopted.",s:["S2"]},
+{st:"Kerala",pol:"Draft GCC policy",status:"Draft",g:"~80",j:"1.6 lakh",by:"n/a",note:"Proposed, not yet in force.",s:["S2"]}
+];
+
+var MODELS=[
+{id:"eor",n:"Employer of record",time:"Hires in 1–2 weeks",cost:"About USD 99 per employee per month, near-zero setup",fit:"Under about 25 people, still testing the market",risk:"No own entity; limited control and IP structure",s:["S13","S14","S12"]},
+{id:"managed",n:"Managed GCC",time:"Go-live in 6–16 weeks",cost:"Between EOR and BOT; depends on provider",fit:"25–100 people, speed matters, no appetite to run an entity yet",risk:"Provider lock-in; quality of support staff varies",s:["S14","S13"]},
+{id:"bot",n:"Build-operate-transfer",time:"Hiring starts in 4–16 weeks (vendors disagree)",cost:"USD 0.3–1M",fit:"100+ people, want ownership later without early operating risk",risk:"The transfer: valuation, transfer pricing, structured employee novation under the Industrial Relations Code 2020",s:["S13","S14","S12"]},
+{id:"captive",n:"Own subsidiary (captive)",time:"16–24 weeks at minimum",cost:"USD 0.5–3M in year one for a 50-person plan",fit:"Long-term, high control, 100+ people",risk:"Slowest start; you own hiring, compliance and the entity",s:["S13","S14","S12"]}
+];
+
+var SIGNALS=[
+{co:"Western Union (second India GCC)",city:"Hyderabad",kind:"New",route:"BOT with HCLTech",size:"400+ expected",s:"S15"},
+{co:"Stolt-Nielsen Digital Innovation Center",city:"Hyderabad",kind:"New",route:"Not stated",size:"Not stated",s:"S15"},
+{co:"Nestlé Business Solutions",city:"Hyderabad",kind:"New",route:"Partner: Genpact",size:"Not stated",s:"S17"},
+{co:"LPL Financial",city:"Hyderabad",kind:"New",route:"Not stated",size:"Not stated",s:"S16"},
+{co:"BASF global digital hub",city:"Hyderabad",kind:"New",route:"Not stated",size:"Not stated",s:"S16"},
+{co:"Sanofi",city:"Hyderabad",kind:"Expansion",route:"Own",size:"2,600+ staff by 2026; €400M",s:"S24"},
+{co:"McDonald's",city:"Hyderabad",kind:"Expansion",route:"Own",size:"Largest GCC outside home market",s:"S16"},
+{co:"Unilever",city:"Hyderabad",kind:"Evaluating",route:"Not stated",size:"Not stated",s:"S16"},
+{co:"N-able",city:"Bengaluru",kind:"New",route:"Not stated",size:"Workforce +50% in 2026",s:"S17"},
+{co:"Abercrombie & Fitch",city:"Bengaluru",kind:"New",route:"Not stated",size:"Opened Aug 2026",s:"S23"},
+{co:"PwC Connected Cybersecurity Solutions Centre",city:"Bengaluru",kind:"New",route:"Own",size:"Not stated",s:"S17"},
+{co:"Deepwatch",city:"Bengaluru",kind:"New",route:"Not stated",size:"Not stated",s:"S25"},
+{co:"Ferguson",city:"Bengaluru",kind:"New",route:"Not stated",size:"Not stated",s:"S25"},
+{co:"Syngenta",city:"Pune",kind:"Expansion",route:"Own",size:"AI-driven agriculture",s:"S16"},
+{co:"DAMAC Group",city:"Noida / Pune",kind:"New",route:"Not stated",size:"Not stated",s:"S25"},
+{co:"OpenAI",city:"New Delhi",kind:"New",route:"Not stated",size:"Not stated",s:"S25"},
+{co:"Walmart Global Tech",city:"Pan-India",kind:"Expansion",route:"Own",size:"$100M; about 4,000 staff today",s:"S24"},
+{co:"Costco",city:"Not stated",kind:"New",route:"Not stated",size:"Technology and research",s:"S16"},
+{co:"Guardian Life Insurance",city:"Not stated",kind:"New",route:"Formally structured as a GCC",size:"Not stated",s:"S16"}
+];
+
+var CHAIN=[
+["Advisors","Each firm sells its own city and model. Atlas shows the same side-by-side facts to everyone."],
+["Legal and tax","Entry route, transfer pricing and policy eligibility, with the notified text one click away."],
+["Real estate","Rents, vacancy and who is actually leasing. Cluster maps come from lease records."],
+["Recruiters and payroll","Hiring share, salary bands and attrition by city. Provider performance is shown as delivered headcount."],
+["State agencies","Incentives compared across states, with the policy text and last verified date."],
+["The GCC itself","A profile page per company: centres, headcount, leaders, providers used."]
+];
+var PROVIDER_LEDGER=[
+{p:"HCLTech",client:"Western Union (second GCC)",city:"Hyderabad",role:"BOT partner",claim:"400+ professionals",status:"Announced",s:"S15"},
+{p:"Genpact",client:"Nestlé Business Solutions",city:"Hyderabad",role:"Partner",claim:"New GCC",status:"Announced",s:"S17"}
+];
+
+/* ---------- helpers ---------- */
+function esc(x){return String(x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function chips(ids){return (Array.isArray(ids)?ids:[ids]).map(function(i){return '<a class="src" href="#sources" data-src="'+i+'" title="'+esc(SOURCES[i].n+' · '+SOURCES[i].d)+'">'+i+'</a>'}).join('')}
+function fmt(n){return n.toLocaleString('en-IN')}
+var $=function(s,r){return (r||document).querySelector(s)};
+var TABS=[["truth","Counts & conflicts"],["registry","Registry"],["cities","Cities"],["states","States"],["entry","Entry route"],["signals","Signals"],["providers","Providers"],["ask","Ask Atlas"],["sources","Sources"]];
+var state={tab:"truth",sort:"hire",dir:-1,countSel:1,sigCity:"All",stFilter:"All",w:{depth:20,cost:20,keep:20,mom:20,eco:20},size:"mid",head:80,urgent:"med",control:"med"};
+
+/* ---------- views ---------- */
+function vTruth(){
+  var max=Math.max.apply(null,COUNTS.map(function(c){return c.v}));
+  var sel=COUNTS[state.countSel];
+  var bars=COUNTS.map(function(c,i){return '<button class="bar" data-i="'+i+'" aria-pressed="'+(i===state.countSel)+'"><span class="lab">'+esc(c.k)+'<small>'+chips(c.s)+'</small></span><span class="track"><span class="fill'+(c.alt?' alt':'')+'" style="display:block;width:'+(c.v/max*100)+'%"></span></span><span class="val">'+fmt(c.v)+'</span></button>'}).join('');
+  var conf=CONFLICTS.map(function(c){return '<article><h3>'+esc(c.t)+'</h3><div class="vals">'+c.vals.map(function(v){return '<span>'+esc(v[0])+chips(v[1]).replace('class="src"','class="src" style="margin-left:6px"')+'</span>'}).join('')+'</div><p class="treat"><b>Atlas treatment.</b> '+esc(c.treat)+'</p></article>'}).join('');
+  var heads=HEADLINE.map(function(h){return '<div><div class="mono" style="font-size:22px;font-weight:500">'+h[1]+'</div><div class="muted" style="font-size:12.5px">'+h[0]+chips(h[2])+'</div></div>'}).join('');
+  return '<section><h2>How many GCCs are there in India?</h2><p class="lede">Six published figures, none of them wrong, none of them comparable. Atlas keeps every figure with its definition so a new entrant can see why they differ.</p></section>'+
+  '<section class="panel"><div class="bars" id="bars">'+bars+'</div><div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)"><span class="chip acc">Selected basis</span> <span id="basis">'+esc(sel.basis)+'</span></div></section>'+
+  '<section class="grid2"><div class="panel"><h3>Latest nasscom–Zinnov base, FY26</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px;margin-top:12px">'+heads+'</div></div>'+
+  '<div class="panel"><h3>Atlas counting rule</h3><p class="muted" style="margin:8px 0 0">One row per parent group with at least one operating centre in India. Sites are listed under the parent, so both "2,117" and "3,728" can be reproduced from the same table. Every row links to the filing, release or report that proves it exists.</p></div></section>'+
+  '<section><h2>Where the sources disagree</h2><p class="lede">Atlas shows the disagreement instead of picking silently, and records which figure it would publish.</p></section><section class="conf">'+conf+'</section>';
+}
+function citySorted(){
+  var k=state.sort,d=state.dir;
+  return CITIES.slice().sort(function(a,b){
+    var x=a[k],y=b[k]; if(x==null&&y==null)return 0; if(x==null)return 1; if(y==null)return -1;
+    return (typeof x==='string'?x.localeCompare(y):x-y)*d;});
+}
+function coverage(){
+  var keys=["gccs","hire","newFY25","rent","attr"],tot=CITIES.length*keys.length,have=0;
+  CITIES.forEach(function(c){keys.forEach(function(k){if(c[k]!=null)have++})});
+  return [have,tot];
+}
+function th(k,l,num){return '<th class="'+(num?'num':'')+'"><button data-sort="'+k+'">'+l+(state.sort===k?(state.dir<0?' ↓':' ↑'):'')+'</button></th>'}
+function cell(v,suffix){return v==null?'<span class="na" title="Not yet sourced">—</span>':esc(v)+(suffix||'')}
+function fitScores(){
+  var wsum=DIMS.reduce(function(a,d){return a+state.w[d[0]]},0)||1;
+  var depthPenalty=0;
+  return CITIES.map(function(c){
+    var parts=DIMS.map(function(d){var v=c.ix[d[0]];
+      if(d[0]==="depth"&&c.tier===2){ if(state.size==="large")v=v*0.5; else if(state.size==="mid")v=v*0.8;}
+      return [d[0],v*state.w[d[0]]/wsum]});
+    var tot=parts.reduce(function(a,p){return a+p[1]},0);
+    return {c:c,tot:tot,parts:parts};
+  }).sort(function(a,b){return b.tot-a.tot});
+}
+function fitHTML(){
+  var r=fitScores().slice(0,5);
+  return r.map(function(x,i){
+    var top=x.parts.slice().sort(function(a,b){return b[1]-a[1]}).slice(0,2);
+    var reasons=top.map(function(p){return x.c.why[p[0]]}).join('. ');
+    var weak=DIMS.map(function(d){return [d[0],x.c.ix[d[0]]]}).sort(function(a,b){return a[1]-b[1]})[0];
+    return '<div class="rk"><div class="n">'+(i+1)+'</div><div><b>'+esc(x.c.c)+'</b> <span class="mono muted">'+x.tot.toFixed(0)+'/100</span> '+(x.c.tier===2?'<span class="chip">Tier-2</span>':'')+chips(x.c.s.slice(0,2))+'<div class="meter"><div style="width:'+x.tot+'%"></div></div><p><b style="color:var(--ink)">Strongest:</b> '+esc(reasons)+'.</p><p><b style="color:var(--ink)">Watch:</b> '+esc(x.c.why[weak[0]])+' ('+DIMS.filter(function(d){return d[0]===weak[0]})[0][1].toLowerCase()+').</p></div></div>';
+  }).join('');
+}
+
+function vRegistry(){
+  var rows=SIGNALS.map(function(s){
+    var stage=s.kind==="Evaluating"?"Evaluating":s.kind==="Expansion"?"Expansion announced":"Announced";
+    var confidence="Low · press only";
+    return '<tr data-reg-row data-company="'+esc((s.co+' '+s.city+' '+s.kind+' '+s.route).toLowerCase())+'"><td><b>'+esc(s.co)+'</b><div class="muted" style="font-size:12px">Parent / operating entity not separately resolved in this demo</div></td><td>'+esc(s.city)+'</td><td>'+esc(stage)+'</td><td>'+esc(s.route)+'</td><td><span class="chip warn">'+confidence+'</span></td><td>'+chips(s.s)+'</td></tr>';
+  }).join('');
+  return '<section><h2>GCC company registry</h2><p class="lede">A small seed set of public GCC announcements and expansions. This is a working sample, not a complete list of companies or an independently verified census.</p></section>'+
+  '<section class="panel"><div class="row" style="justify-content:space-between"><label for="registry-search">Search company, city or entry type</label><span class="chip">'+SIGNALS.length+' sample records</span></div><input id="registry-search" type="text" placeholder="e.g. Hyderabad, expansion, Western Union" style="width:100%;margin-top:8px"><p class="muted" style="margin:8px 0 0;font-size:13px">In this version, records are sourced from public reports. Parent entity, site-level matching and pre-announcement evidence are not yet resolved.</p></section>'+
+  '<div class="tablewrap"><table><thead><tr><th>Company / signal</th><th>City</th><th>Stage</th><th>Route / partner</th><th>Evidence confidence</th><th>Source</th></tr></thead><tbody id="registry-rows">'+rows+'</tbody></table></div>'+
+  '<p id="registry-empty" class="muted" hidden>No records match that search.</p>';
+}
+
+function vCities(){
+  var cv=coverage();
+  var rows=citySorted().map(function(c){return '<tr><td><b>'+esc(c.c)+'</b>'+(c.tier===2?' <span class="chip">Tier-2</span>':'')+'<div>'+chips(c.s)+'</div></td><td class="num">'+cell(c.gccs)+'</td><td class="num">'+cell(c.hire,c.hire==null?'':'%')+'</td><td class="num">'+cell(c.newFY25)+'</td><td class="num">'+cell(c.rent,c.rent==null?'':'')+'</td><td class="num">'+cell(c.attr)+'</td></tr>'}).join('');
+  var sl=DIMS.map(function(d){return '<div class="sl"><label for="w-'+d[0]+'"><span>'+d[1]+'</span><span class="mono" id="wv-'+d[0]+'">'+state.w[d[0]]+'</span></label><input type="range" id="w-'+d[0]+'" data-w="'+d[0]+'" min="0" max="50" value="'+state.w[d[0]]+'"></div>'}).join('');
+  return '<section><h2>Which city fits?</h2><p class="lede">Move the weights to match what your leadership cares about. The ranking and the reasons behind it update as you go.</p></section>'+
+  '<section class="panel"><div class="sliders">'+sl+'<div class="sl"><label for="size"><span>Planned team in year 3</span></label><select id="size"><option value="small"'+(state.size==="small"?' selected':'')+'>Under 100 people</option><option value="mid"'+(state.size==="mid"?' selected':'')+'>100 to 400 people</option><option value="large"'+(state.size==="large"?' selected':'')+'>400+ people</option></select></div></div><div class="rank" id="rank">'+fitHTML()+'</div>'+
+  '<details><summary>How the index is built</summary><p class="muted" style="margin:8px 0 0">Scores run 0–100 and are an Atlas v0 analyst index derived from the cited indicators (GCC counts, hiring share, rent and salary gaps, attrition, new GCC additions, leasing absorption). They are directional, not measurements. Where a city has no sourced figure the score leans on its tier and is marked in the reasons. Tier-2 cities lose talent-depth points as the planned team grows, because roughly half of complex roles in tier-2 cities are still routed back to tier-1 hubs <a class="src" href="#sources" data-src="S21">S21</a>.</p></details></section>'+
+  '<section><h2>City facts</h2><p class="lede">Every empty cell is a gap Atlas has not yet sourced. <span class="cover">Coverage <b>'+cv[0]+' of '+cv[1]+'</b> cells</span></p></section>'+
+  '<div class="tablewrap"><table><thead><tr>'+th('c','City')+th('gccN','GCCs',1)+th('hire','Share of GCC hiring',1)+th('newFY25','New GCCs FY25',1)+th('rent','Rent ₹/sq ft/mo',1)+th('attrN','Attrition',1)+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function vStates(){
+  var f=state.stFilter;
+  var opts=["All","In force","Framework","Incentives","Draft"].map(function(o){return '<button class="btn" data-stf="'+o+'" aria-pressed="'+(f===o)+'">'+o+'</button>'}).join('');
+  var rows=STATES.filter(function(s){return f==="All"||s.status===f}).map(function(s){
+    return '<tr><td><b>'+esc(s.st)+'</b>'+(s.flag?' <span class="chip warn">Sources differ</span>':'')+'</td><td>'+esc(s.pol)+'<div><span class="chip '+(s.status==="In force"?"ok":"")+'">'+esc(s.status)+'</span></div></td><td class="num">'+esc(s.g)+'</td><td class="num">'+esc(s.j)+'</td><td>'+esc(s.by)+'</td><td style="min-width:240px">'+esc(s.note)+chips(s.s)+'</td></tr>'}).join('');
+  return '<section><h2>State incentives, side by side</h2><p class="lede">States are targeting about 1,380 new GCCs and 1.18 million jobs by 2031 <a class="src" href="#sources" data-src="S2">S2</a>. States now compete on execution speed and infrastructure as much as on incentives.</p></section>'+
+  '<div class="row">'+opts+'</div><div class="tablewrap"><table><thead><tr><th>State</th><th>Policy</th><th class="num">New GCCs</th><th class="num">Jobs</th><th>Horizon</th><th>Support and notes</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<p class="muted" style="font-size:13px;margin:0">Next step in the product: attach the notified text and a machine-readable incentive schedule (capital subsidy, payroll support, stamp duty, power) to each row, with a last-verified date.</p>';
+}
+function recommend(){
+  var h=state.head,u=state.urgent,c=state.control,id;
+  if(h<25)id="eor"; else if(h<100)id=(u==="high")?"managed":(c==="high"?"captive":"bot"); else id=(c==="high"&&u!=="high")?"captive":"bot";
+  return id;
+}
+function vEntry(){
+  var rid=recommend();
+  var cards=MODELS.map(function(m){return '<div class="panel model'+(m.id===rid?' pick':'')+'"><div class="row" style="justify-content:space-between"><h3>'+m.n+'</h3>'+(m.id===rid?'<span class="chip acc">Best fit for your inputs</span>':'')+'</div><dl class="kv"><dt>Time</dt><dd>'+esc(m.time)+'</dd><dt>Cost</dt><dd>'+esc(m.cost)+'</dd><dt>Fits when</dt><dd>'+esc(m.fit)+'</dd><dt>Watch for</dt><dd>'+esc(m.risk)+'</dd></dl><div>'+chips(m.s)+'</div></div>'}).join('');
+  return '<section><h2>Which entry route fits?</h2><p class="lede">Answer three questions. The routes below re-rank, with the figures each one rests on.</p></section>'+
+  '<section class="panel"><div class="sliders"><div class="sl"><label for="head"><span>People in the first 12 months</span><span class="mono" id="headv">'+state.head+'</span></label><input type="range" id="head" min="5" max="400" step="5" value="'+state.head+'"></div>'+
+  '<div class="sl"><label for="urgent"><span>How fast do you need the first hires?</span></label><select id="urgent"><option value="low"'+(state.urgent==="low"?" selected":"")+'>No rush</option><option value="med"'+(state.urgent==="med"?" selected":"")+'>This quarter</option><option value="high"'+(state.urgent==="high"?" selected":"")+'>As fast as possible</option></select></div>'+
+  '<div class="sl"><label for="control"><span>How much control do you need?</span></label><select id="control"><option value="low"'+(state.control==="low"?" selected":"")+'>Low, test first</option><option value="med"'+(state.control==="med"?" selected":"")+'>Medium</option><option value="high"'+(state.control==="high"?" selected":"")+'>High, own the entity</option></select></div></div></section>'+
+  '<section class="grid2" id="models">'+cards+'</section>'+
+  '<section class="panel"><h3>Tax and compliance notes</h3><p class="muted" style="margin:8px 0 0">Most captives bill their parent cost-plus. A 2026 safe harbour lets eligible IT and ITeS captives fix the margin at 15.5% of operating cost for five years, against roughly 25% corporate tax on the margin '+chips("S13")+' Labour codes, the DPDP Act and transfer pricing certainty are the three compliance threads most entrants trip on '+chips("S12")+'</p></section>'+
+  '<p class="muted" style="font-size:13px;margin:0">Cost and timing figures here come from vendors who sell these services. Atlas replaces them with observed times and costs once verified engagements are on the platform.</p>';
+}
+function vSignals(){
+  var cities=["All"].concat(Array.from(new Set(SIGNALS.map(function(s){return s.city}))));
+  var f=state.sigCity;
+  var counts={};SIGNALS.forEach(function(s){counts[s.city]=(counts[s.city]||0)+1});
+  var top=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a]}).slice(0,4);
+  var chipsRow=cities.map(function(c){return '<button class="btn" data-sc="'+esc(c)+'" aria-pressed="'+(f===c)+'">'+esc(c)+'</button>'}).join('');
+  var rows=SIGNALS.filter(function(s){return f==="All"||s.city===f}).map(function(s){return '<tr><td><b>'+esc(s.co)+'</b></td><td>'+esc(s.city)+'</td><td><span class="chip '+(s.kind==="New"?"acc":s.kind==="Evaluating"?"warn":"")+'">'+s.kind+'</span></td><td>'+esc(s.route)+'</td><td>'+esc(s.size)+'</td><td><span class="chip">Press only</span>'+chips(s.s)+'</td></tr>'}).join('');
+  return '<section><h2>Public announcements and expansions</h2><p class="lede">Announcements and expansions collected from public sources. Of the '+SIGNALS.length+' tracked here, '+counts["Hyderabad"]+' point to Hyderabad and '+counts["Bengaluru"]+' to Bengaluru. This is a small hand-collected sample, not a census.</p></section>'+
+  '<div class="panel"><div class="row" role="list" aria-label="Lifecycle stages"><span class="chip acc" role="listitem">Announced</span><span class="muted">→</span><span class="chip" role="listitem">Incorporated</span><span class="muted">→</span><span class="chip" role="listitem">Leased</span><span class="muted">→</span><span class="chip" role="listitem">Operational</span></div><p class="muted" style="margin:10px 0 0;font-size:13.5px">Atlas tracks each GCC by lifecycle stage. Every new entry below sits at Announced and is press-sourced only. Incorporation filings, lease records and job posts are what would move it along, and that earlier signal is what providers would pay for.</p></div>'+
+  '<div class="row">'+chipsRow+'</div><div class="tablewrap"><table><thead><tr><th>Company</th><th>City</th><th>Type</th><th>Route</th><th>Scale</th><th>Evidence</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<p class="muted" style="font-size:13px;margin:0">Future version: MCA incorporation filings, state approvals, lease records and job postings would be joined to this table. This sample does not yet detect companies before their announcement.</p>';
+}
+function vProviders(){
+  var chain=CHAIN.map(function(c){return '<div class="panel"><h3>'+c[0]+'</h3><p>'+c[1]+'</p></div>'}).join('');
+  var rows=PROVIDER_LEDGER.map(function(r){return '<tr><td><b>'+r.p+'</b></td><td>'+esc(r.client)+'</td><td>'+esc(r.city)+'</td><td>'+esc(r.role)+'</td><td>'+esc(r.claim)+'</td><td><span class="chip warn">'+r.status+'</span>'+chips(r.s)+'</td><td class="na">Pending</td></tr>'}).join('');
+  return '<section><h2>Delivered, not marketed</h2><p class="lede">Entrants lean on referrals because nobody can tell which providers delivered. Atlas turns each provider into a record of engagements, with the promised headcount next to what was verified later.</p></section>'+
+  '<section class="chain">'+chain+'</section>'+
+  '<section><h3>Evidence ledger (2 engagements ingested from press)</h3></section><div class="tablewrap"><table><thead><tr><th>Provider</th><th>Client</th><th>City</th><th>Role</th><th>Announced scale</th><th>Status</th><th>Headcount at 12 months</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<section class="panel"><h3>How a provider earns a score</h3><dl class="kv" style="margin-top:10px"><dt>Verified</dt><dd>Engagement confirmed by two independent signals (filing, lease, job postings, client reference).</dd><dt>Delivered</dt><dd>Headcount and time to first hire at 6 and 12 months against the announced plan.</dd><dt>Referenced</dt><dd>Client-confirmed outcome, with the client\'s role named. Clients can reply to disputes.</dd></dl><p class="muted" style="margin:10px 0 0">No provider score is published yet: two press-only rows are not enough to rank anyone, and showing a score here would be invented.</p></section>';
+}
+function vAsk(){
+  var qs=["Compare Hyderabad and Pune for a 150-person engineering centre.","Which states have a notified GCC policy and what do they target?","Why do the GCC counts differ across reports?","I need a first hire within a month and expect 20 people. What route do I take?"];
+  return '<section><h2>Ask Atlas</h2><p class="lede">Ask Atlas is grounded in the sample dataset. In a standalone browser this demo uses a small local response layer; the Claude-connected version can use a model. Either way, unknown figures should stay unknown.</p></section>'+
+  '<section class="panel"><div class="pillrow" style="margin-bottom:12px">'+qs.map(function(q,i){return '<button class="btn" data-q="'+i+'">'+esc(q)+'</button>'}).join('')+'</div><label for="q" class="muted" style="font-size:13px">Your question</label><textarea id="q" placeholder="For example: where can I find the lowest attrition for a 60-person analytics team?"></textarea><div class="row" style="margin-top:10px"><button class="btn primary" id="go">Ask</button><button class="btn" id="stop" hidden>Stop</button><span class="muted" id="askstat"></span></div><div class="answer" id="ans" style="margin-top:16px" aria-live="polite"></div></section>';
+}
+function vSources(){
+  var items=Object.keys(SOURCES).map(function(k){var s=SOURCES[k];return '<div class="srcitem" id="src-'+k+'"><span class="src mono" style="height:fit-content;text-align:center">'+k+'</span><div><div>'+esc(s.n)+'</div><div class="muted" style="font-size:12.5px">'+esc(s.d)+' · <a href="'+esc(s.u)+'" target="_blank" rel="noopener">'+esc(s.u.replace(/^https?:\/\//,'').slice(0,70))+'</a></div></div></div>'}).join('');
+  return '<section><h2>Sources</h2><p class="lede">'+Object.keys(SOURCES).length+' public sources behind this prototype. Several are trade press or vendor pages that quote primary reports, which is why Atlas tracks the basis of each figure.</p></section><section class="panel">'+items+'</section>';
+}
+
+/* ---------- Ask: grounded call to Claude through the sample capability ---------- */
+var askAbort=null;
+function context(){
+  return JSON.stringify({sources:Object.keys(SOURCES).reduce(function(o,k){o[k]=SOURCES[k].n+" ("+SOURCES[k].d+")";return o},{}),counts:COUNTS,conflicts:CONFLICTS,cities:CITIES.map(function(c){return {city:c.c,tier:c.tier,gccs:c.gccs,hiringSharePct:c.hire,newGCCsFY25:c.newFY25,rentInrSqftMonth:c.rent,attrition:c.attr,index:c.ix,reasons:c.why,sources:c.s}}),states:STATES,entryRoutes:MODELS,pipeline:SIGNALS});
+}
+
+function localAskAnswer(question){
+  var q=String(question||"").toLowerCase();
+  if(/count|how many|number|differ|conflict|disagree/.test(q)){
+    return "The cleanest FY26 company-level figure in this dataset is 2,117 GCCs, across 3,728 individual sites [S1]. The other published values use different years or counting bases: FY24 is 1,800, Zinnov’s end-2025 figure is 1,760, and the 2025 secondary figure is 1,700 [S18] [S20] [S19]. I would not average these together. Atlas keeps the reporting period and definition alongside each number.\n\nGap: a company-level master list reconciled against the primary datasets would make the count more defensible."
+  }
+  if(/hyderabad|pune|city|location|where.*build|compare/.test(q)){
+    return "For this sample, Hyderabad has a reported 515+ GCCs and a directional Atlas momentum score of 90; Pune has 475+ GCCs and a momentum score of 75 [S9] [S5]. The Hyderabad rent input is about ₹75/sq ft/month, while Pune rent is not yet sourced. These scores are an analyst index, not a measured market ranking. I would treat Hyderabad as the stronger initial hypothesis for growth and leave a final recommendation open until costs and role-specific talent are compared on a like-for-like basis.\n\nGap: comparable Grade A rents, role-level salary bands and independently sourced attrition data for both cities."
+  }
+  if(/state|policy|incentive|subsid/.test(q)){
+    var active=STATES.filter(function(s){return s.status==="In force"}).map(function(s){return s.st+" ("+s.pol+")"}).slice(0,7).join(", ");
+    return "In the current sample, states marked as having a policy in force include "+active+" [S2] [S10] [S11]. The dataset separately labels frameworks, incentives-only entries and draft policies, because those are not equivalent to a notified policy. Maharashtra’s target is flagged because sources disagree; the primary policy should decide which figure Atlas ultimately publishes [S2] [S11].\n\nGap: the latest notified policy text for every state and a structured, comparable schedule of eligibility, caps, exclusions and application steps."
+  }
+  if(/route|first hire|hire within|people|eor|bot|own entity|entry model/.test(q)){
+    return "For a team of around 20 people that needs to hire quickly, an Employer of Record is the starting option in this sample: vendor material suggests hiring can begin in about 1–2 weeks, with low setup overhead [S13] [S14]. That is not a legal or tax recommendation. Before choosing it, confirm the role types, expected duration, IP needs, tax position and the point at which an Indian subsidiary becomes preferable. The source timelines are vendor estimates, not verified Atlas outcomes.\n\nGap: verified time-to-first-hire and total cost data from completed engagements, plus legal review for the company’s specific operating model."
+  }
+  if(/pipeline|next|coming|signal|announc|lead/.test(q)){
+    return "The current sample contains public announcements and expansions only. It does not yet identify companies before a GCC announcement, so it cannot prove the pre-launch radar thesis. The next version would join MCA filings, leadership job postings, state approvals, lease evidence and provider confirmations, then show which signals support each lead [S15] [S16] [S17] [S24].\n\nGap: a back-tested history of early signals and launches, plus provider interviews to establish how much earlier a useful lead arrives."
+  }
+  if(/provider|partner|deliver|evidence/.test(q)){
+    return "The provider ledger currently has two press-sourced engagements. Both are marked announced, and delivered headcount is still pending. That is not enough evidence to rank providers, so Atlas should publish the engagements and their sources but hold off on scores. Later verification could compare planned versus delivered headcount, time to first hire and client-confirmed outcomes.\n\nGap: provider participation and independent confirmation from clients or filings."
+  }
+  return "I can answer a few questions from the current sample: GCC counts and their differences, Hyderabad versus Pune, state policies, entry routes, public pipeline signals, and provider evidence. This standalone demo does not search the live web.\n\nGap: ask a narrower question or connect a model-backed endpoint for broader natural-language analysis."
+}
+
+async function ask(text){
+  var ans=$("#ans"),stat=$("#askstat"),go=$("#go"),stop=$("#stop");
+  if(!text.trim())return;
+  var sample=null;
+  try{sample=window.claude&&window.claude.use?await window.claude.use("sample"):null}catch(e){}
+  if(!sample){ans.textContent=localAskAnswer(text);stat.textContent="Local demo response · no live model call";return}
+  askAbort=new AbortController();go.disabled=true;stop.hidden=false;stat.textContent="Thinking";ans.textContent="";
+  var system="You are the analyst inside GCC Atlas, a data product about Global Capability Centres in India. Answer ONLY from the DATA below. Cite sources inline as [S#] using the ids in DATA. If DATA lacks a figure (a null or missing value), say it is not yet sourced and do not estimate. When DATA contains conflicting figures for the same fact, state both and say they conflict. The city 'index' values are an Atlas v0 analyst index, directional only, so label them that way. Be concise: under 220 words, plain prose with at most one short list. End with one line starting 'Gap:' naming what data would make the answer firmer.\n\nDATA:\n"+context()+"\n\nQUESTION:\n"+text;
+  try{
+    await sample(system,{signal:askAbort.signal,cache:false,modelTier:"quick",onText:function(t){ans.textContent=t.text;stat.textContent=""}});
+    stat.textContent="";
+  }catch(e){
+    if(e&&e.code==="not_granted"){ans.textContent=localAskAnswer(text);stat.textContent="Local demo response · model permission unavailable";}
+    else if(e&&e.code==="rate_limited"){ans.textContent=localAskAnswer(text);stat.textContent="Local demo response · model rate-limited";}
+    else if(!(askAbort&&askAbort.signal.aborted)){ans.textContent=localAskAnswer(text);stat.textContent="Local demo response · model connection unavailable";}
+    stat.textContent="";
+  }finally{go.disabled=false;stop.hidden=true;askAbort=null}
+}
+
+/* ---------- routing ---------- */
+var VIEWS={truth:vTruth,registry:vRegistry,cities:vCities,states:vStates,entry:vEntry,signals:vSignals,providers:vProviders,ask:vAsk,sources:vSources};
+function renderTabs(){
+  $("#tabs").innerHTML=TABS.map(function(t){return '<button role="tab" data-tab="'+t[0]+'" aria-selected="'+(state.tab===t[0])+'">'+t[1]+'</button>'}).join('');
+}
+function render(){renderTabs();$("#view").innerHTML=VIEWS[state.tab]();
+  if(state.tab==="sources"&&state.hl){var e=document.getElementById("src-"+state.hl);if(e){e.classList.add("hl");e.scrollIntoView({block:"center"})}state.hl=null}
+}
+function go(tab){state.tab=tab;try{if(location.hash!=="#"+tab)history.replaceState(null,"","#"+tab)}catch(e){}render();window.scrollTo(0,0)}
+document.addEventListener("click",function(e){
+  var t=e.target.closest("[data-tab],[data-src],[data-sort],[data-i],[data-stf],[data-sc],[data-q],#go,#stop");if(!t)return;
+  if(t.dataset.tab){go(t.dataset.tab)}
+  else if(t.dataset.src){e.preventDefault();state.hl=t.dataset.src;go("sources")}
+  else if(t.dataset.sort){var k=t.dataset.sort;if(k==="c"){state.dir=state.sort===k?-state.dir:1}else{state.dir=state.sort===k?-state.dir:-1}state.sort=k;render()}
+  else if(t.dataset.i!==undefined){state.countSel=+t.dataset.i;render()}
+  else if(t.dataset.stf){state.stFilter=t.dataset.stf;render()}
+  else if(t.dataset.sc){state.sigCity=t.dataset.sc;render()}
+  else if(t.dataset.q!==undefined){var qs=["Compare Hyderabad and Pune for a 150-person engineering centre.","Which states have a notified GCC policy and what do they target?","Why do the GCC counts differ across reports?","I need a first hire within a month and expect 20 people. What route do I take?"];$("#q").value=qs[+t.dataset.q];ask(qs[+t.dataset.q])}
+  else if(t.id==="go"){ask($("#q").value)}
+  else if(t.id==="stop"){if(askAbort)askAbort.abort()}
+});
+document.addEventListener("input",function(e){
+  var t=e.target;
+  if(t.id==="registry-search"){
+    var q=t.value.trim().toLowerCase(),visible=0;
+    document.querySelectorAll("[data-reg-row]").forEach(function(r){var show=!q||r.dataset.company.indexOf(q)!==-1;r.hidden=!show;if(show)visible++});
+    var empty=document.getElementById("registry-empty");if(empty)empty.hidden=visible!==0;
+  }
+  else if(t.dataset&&t.dataset.w){state.w[t.dataset.w]=+t.value;$("#wv-"+t.dataset.w).textContent=t.value;$("#rank").innerHTML=fitHTML()}
+  else if(t.id==="head"){state.head=+t.value;$("#headv").textContent=t.value;$("#models").innerHTML=MODELS.map(modelCard).join("")}
+});
+document.addEventListener("change",function(e){
+  var t=e.target;
+  if(t.id==="size"){state.size=t.value;$("#rank").innerHTML=fitHTML()}
+  else if(t.id==="urgent"){state.urgent=t.value;$("#models").innerHTML=MODELS.map(modelCard).join("")}
+  else if(t.id==="control"){state.control=t.value;$("#models").innerHTML=MODELS.map(modelCard).join("")}
+});
+function modelCard(m){var rid=recommend();return '<div class="panel model'+(m.id===rid?' pick':'')+'"><div class="row" style="justify-content:space-between"><h3>'+m.n+'</h3>'+(m.id===rid?'<span class="chip acc">Best fit for your inputs</span>':'')+'</div><dl class="kv"><dt>Time</dt><dd>'+esc(m.time)+'</dd><dt>Cost</dt><dd>'+esc(m.cost)+'</dd><dt>Fits when</dt><dd>'+esc(m.fit)+'</dd><dt>Watch for</dt><dd>'+esc(m.risk)+'</dd></dl><div>'+chips(m.s)+'</div></div>'}
+window.addEventListener("hashchange",function(){var h=location.hash.slice(1);if(VIEWS[h]&&h!==state.tab){state.tab=h;render()}});
+(function(){var h=location.hash.slice(1);if(VIEWS[h])state.tab=h;render()})();
+</script>
+
+</body></html>
